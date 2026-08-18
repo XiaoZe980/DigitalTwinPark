@@ -1,0 +1,68 @@
+# ============================================================================
+# Unreal Engine 5 .gitignore
+# ============================================================================
+
+# Visual Studio
+.vs/
+*.sln
+*.slnx
+*.suo
+*.user
+.vscode/
+.idea/
+*.code-workspace
+
+# Binaries
+Binaries/
+DerivedDataCache/
+Intermediate/
+Saved/
+*.exe
+*.dll
+*.pdb
+*.exp
+
+# Build
+Build/
+*.target
+
+# Content
+Content/Collections/
+Content/Developers/
+
+# Config (keep some, ignore generated)
+Config/*-Debug.ini
+Config/*-Development.ini
+Config/*-Shipping.ini
+Config/*-Test.ini
+
+# Plugins (compiled)
+Plugins/*/Binaries/
+Plugins/*/Intermediate/
+
+# Oculus
+*.apk
+*.obb
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Mac
+.DS_Store
+*.dSYM
+
+# Crash reports
+CrashReportClient/
+*.crash
+
+# Pak files
+*.pak
+*.ucas
+*.utoc
+
+# Misc
+*.log
+*.tmp
+Automation_*
