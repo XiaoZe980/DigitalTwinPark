@@ -66,12 +66,16 @@ public:
 	// 组件
 	// ========================================================================
 
-	/** 场景根组件 */
+	/** 场景根组件（碰撞在此，用于点击选中） */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "DigitalTwinPark|Components")
 	TObjectPtr<USceneComponent> RootScene;
 
-	/** 建筑静态网格（子Actor或直接放置） */
+	/** 碰撞盒（用于点击选中，包围整个建筑） */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "DigitalTwinPark|Components")
+	TObjectPtr<class UBoxComponent> CollisionBox;
+
+	/** 建筑网格（可选，蓝图子类可替换为ChildActorComponent） */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DigitalTwinPark|Components")
 	TObjectPtr<UStaticMeshComponent> BuildingMesh;
 
 	/** 外轮廓高亮组件（运行时动态创建） */

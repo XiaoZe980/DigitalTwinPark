@@ -8,6 +8,8 @@
 #include "DigitalTwinPark.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
+#include "InputMappingContext.h"
+#include "InputAction.h"
 #include "InputActionValue.h"
 #include "Engine/World.h"
 #include "DrawDebugHelpers.h"
@@ -23,6 +25,9 @@ void ADTPPlayerController::BeginPlay()
 {
 	Super::BeginPlay();
 
+	// 加载输入资源
+	LoadInputAssets();
+
 	// 添加Enhanced Input映射上下文
 	if (UEnhancedInputLocalPlayerSubsystem* Subsystem =
 		ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(GetLocalPlayer()))
@@ -30,6 +35,11 @@ void ADTPPlayerController::BeginPlay()
 		if (DefaultMappingContext)
 		{
 			Subsystem->AddMappingContext(DefaultMappingContext, 0);
+			UE_LOG(LogDTP, Log, TEXT("[DTP] IMC 已绑定: %s"), *DefaultMappingContext->GetName());
+		}
+		else
+		{
+			UE_LOG(LogDTP, Error, TEXT("[DTP] 无法加载 IMC_Default!"));
 		}
 	}
 
@@ -39,6 +49,9 @@ void ADTPPlayerController::BeginPlay()
 void ADTPPlayerController::SetupInputComponent()
 {
 	Super::SetupInputComponent();
+
+	// 确保输入资源已加载（SetupInputComponent 可能早于 BeginPlay 调用）
+	LoadInputAssets();
 
 	if (UEnhancedInputComponent* EnhancedInput = Cast<UEnhancedInputComponent>(InputComponent))
 	{
@@ -220,4 +233,26 @@ void ADTPPlayerController::PerformTouchTrace(const FVector2D& ScreenPosition)
 			SelectBuilding(Building);
 		}
 	}
+}
+
+void ADTPPlayerController::LoadInputAssets()
+{
+	// 从资源路径加载 Input Actions（不依赖蓝图配置，避免脚本设置丢失）
+	if (!IA_Move)
+		IA_Move = LoadObject<UInputAction>(nullptr, TEXT("/Game/Input/IA_Move.IA_Move"));
+	if (!IA_MoveUpDown)
+		IA_MoveUpDown = LoadObject<UInputAction>(nullptr, TEXT("/Game/Input/IA_MoveUpDown.IA_MoveUpDown"));
+	if (!IA_Look)
+		IA_Look = LoadObject<UInputAction>(nullptr, TEXT("/Game/Input/IA_Look.IA_Look"));
+	if (!IA_Zoom)
+		IA_Zoom = LoadObject<UInputAction>(nullptr, TEXT("/Game/Input/IA_Zoom.IA_Zoom"));
+	if (!IA_Click)
+		IA_Click = LoadObject<UInputAction>(nullptr, TEXT("/Game/Input/IA_Click.IA_Click"));
+	if (!IA_TouchTap)
+		IA_TouchTap = LoadObject<UInputAction>(nullptr, TEXT("/Game/Input/IA_TouchTap.IA_TouchTap"));
+
+	// 加载 IMC
+	if (!DefaultMappingContext)
+		DefaultMappingContext = LoadObject<UInputMappingContext>(
+			nullptr, TEXT("/Game/Input/IMC_Default.IMC_Default"));
 }

@@ -101,6 +101,9 @@ private:
 	/** 触控点击射线检测 */
 	void PerformTouchTrace(const FVector2D& ScreenPosition);
 
+	/** 从资源路径加载所有 Input Action 和 IMC（不依赖蓝图配置） */
+	void LoadInputAssets();
+
 	/** 当前选中建筑 */
 	UPROPERTY()
 	TObjectPtr<ADTPBuildingActor> SelectedBuilding;

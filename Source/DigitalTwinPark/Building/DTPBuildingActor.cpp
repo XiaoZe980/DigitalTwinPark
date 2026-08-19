@@ -6,6 +6,7 @@
 #include "Data/DTPDataTypes.h"
 #include "DigitalTwinPark.h"
 #include "Components/StaticMeshComponent.h"
+#include "Components/BoxComponent.h"
 #include "Components/WidgetComponent.h"
 #include "Materials/MaterialInterface.h"
 
@@ -17,13 +18,15 @@ ADTPBuildingActor::ADTPBuildingActor()
 	RootScene = CreateDefaultSubobject<USceneComponent>(TEXT("Root"));
 	SetRootComponent(RootScene);
 
-	// 建筑网格
-	BuildingMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("BuildingMesh"));
-	BuildingMesh->SetupAttachment(RootScene);
-	BuildingMesh->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
-	BuildingMesh->SetCollisionResponseToChannel(ECC_Visibility, ECR_Block);
+	// 碰撞盒（用于点击选中，编辑器可见，游戏中隐藏）
+	CollisionBox = CreateDefaultSubobject<UBoxComponent>(TEXT("CollisionBox"));
+	CollisionBox->SetupAttachment(RootScene);
+	CollisionBox->SetBoxExtent(FVector(500.0f, 500.0f, 500.0f));
+	CollisionBox->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+	CollisionBox->SetCollisionResponseToChannel(ECC_Visibility, ECR_Block);
+	CollisionBox->SetHiddenInGame(true);
 
-	// 外轮廓（运行时创建，默认隐藏）
+	// 外轮廓（默认隐藏）
 	OutlineMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("OutlineMesh"));
 	OutlineMesh->SetupAttachment(RootScene);
 	OutlineMesh->SetVisibility(false);

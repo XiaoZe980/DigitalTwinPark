@@ -11,6 +11,10 @@ ADTPPawn::ADTPPawn()
 {
 	PrimaryActorTick.bCanEverTick = true;
 
+	// 根组件
+	USceneComponent* RootComp = CreateDefaultSubobject<USceneComponent>(TEXT("Root"));
+	SetRootComponent(RootComp);
+
 	// 浮空移动组件
 	MovementComponent = CreateDefaultSubobject<UFloatingPawnMovement>(TEXT("Movement"));
 	MovementComponent->SetPlaneConstraintEnabled(false); // 无平面约束，自由飞行
