@@ -7,6 +7,7 @@
 #include "DTPHttpDataProvider.h"
 #include "DigitalTwinPark.h"
 #include "Engine/World.h"
+#include "Engine/GameInstance.h"
 #include "TimerManager.h"
 
 void UDTPDataSubsystem::Initialize(FSubsystemCollectionBase& Collection)
@@ -86,6 +87,22 @@ void UDTPDataSubsystem::UseHttpData(const FString& BaseURL)
 	UE_LOG(LogDTP, Log, TEXT("[DTP] 已切换到HTTP数据源: %s"), *BaseURL);
 }
 
+void UDTPDataSubsystem::SetWeatherSource(const FString& APIKey, const FString& Location, const FString& Host)
+{
+	if (UDTPHttpDataProvider* Http = Cast<UDTPHttpDataProvider>(DataProviderObject))
+	{
+		Http->SetWeatherSource(APIKey, Location, Host);
+		if (DataProvider)
+		{
+			DataProvider->StartFetching(); // 立即用新配置拉一次
+		}
+	}
+	else
+	{
+		UE_LOG(LogDTP, Warning, TEXT("[DTP] SetWeatherSource: 当前不是HTTP数据源，请先 UseHttpData"));
+	}
+}
+
 void UDTPDataSubsystem::SetUpdateInterval(float Seconds)
 {
 	UpdateInterval = FMath::Max(0.5f, Seconds);
@@ -93,6 +110,26 @@ void UDTPDataSubsystem::SetUpdateInterval(float Seconds)
 	{
 		DataProvider->SetUpdateInterval(UpdateInterval);
 	}
+}
+
+void UDTPDataSubsystem::StartPeriodicUpdates()
+{
+	UWorld* World = GetGameInstance() ? GetGameInstance()->GetWorld() : nullptr;
+	if (!World)
+	{
+		UE_LOG(LogDTP, Warning, TEXT("[DTP] StartPeriodicUpdates: World 不可用"));
+		return;
+	}
+
+	// 循环定时器：每个周期触发一次数据刷新
+	World->GetTimerManager().SetTimer(
+		UpdateTimerHandle,
+		this,
+		&UDTPDataSubsystem::OnUpdateTimer,
+		UpdateInterval,
+		true
+	);
+	UE_LOG(LogDTP, Log, TEXT("[DTP] 数据定时刷新已启动，间隔 %.1f 秒"), UpdateInterval);
 }
 
 // ============================================================================

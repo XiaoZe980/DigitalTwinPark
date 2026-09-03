@@ -41,6 +41,10 @@ public:
 protected:
 	virtual void BeginPlay() override;
 
+	/** 数据更新回调：把 DataSubsystem 最新数据同步到所有建筑 */
+	UFUNCTION()
+	void HandleBuildingDataUpdated();
+
 	UPROPERTY()
 	TArray<ADTPBuildingActor*> RegisteredBuildings;
 };

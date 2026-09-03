@@ -64,6 +64,14 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DigitalTwinPark|Camera")
 	TArray<TObjectPtr<UDTPCameraPreset>> Presets;
 
+	/** 编辑器工具：要把当前视角保存到 Presets 里的第几个（从0开始） */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DigitalTwinPark|Camera|EditorTool")
+	int32 PresetIndexToSave = 0;
+
+	/** 编辑器工具按钮：把当前 Pawn 位置/旋转直接写进 Presets[PresetIndexToSave] 并落盘，免去手动抄坐标 */
+	UFUNCTION(CallInEditor, Category = "DigitalTwinPark|Camera|EditorTool")
+	void SaveCurrentViewToPreset();
+
 protected:
 	virtual void BeginPlay() override;
 	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;

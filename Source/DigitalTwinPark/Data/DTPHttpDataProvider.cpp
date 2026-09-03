@@ -63,8 +63,10 @@ void UDTPHttpDataProvider::FetchAllData()
 {
 	if (!bIsFetching) return;
 
-	PendingRequests = 4;
 	FHttpModule& HttpModule = FHttpModule::Get();
+	// 配置了真实天气Key时，天气 + 空气质量各发一个请求到和风
+	bUseRealWeather = !WeatherAPIKey.IsEmpty() && !WeatherLocation.IsEmpty();
+	PendingRequests = bUseRealWeather ? 5 : 4;
 
 	// 请求建筑数据
 	{
@@ -75,12 +77,34 @@ void UDTPHttpDataProvider::FetchAllData()
 		Request->ProcessRequest();
 	}
 
-	// 请求天气数据
+	// 请求天气数据（配置真实天气源则请求和风实况API，否则走 BaseURL 假数据）
+	const FString WeatherHost = WeatherAPIHost.IsEmpty() ? TEXT("https://devapi.qweather.com") : WeatherAPIHost;
 	{
 		TSharedRef<IHttpRequest> Request = HttpModule.CreateRequest();
-		Request->SetURL(BaseURL + TEXT("/weather"));
+		if (bUseRealWeather)
+		{
+			Request->SetURL(FString::Printf(
+				TEXT("%s/v7/weather/now?location=%s&key=%s"),
+				*WeatherHost, *WeatherLocation, *WeatherAPIKey));
+		}
+		else
+		{
+			Request->SetURL(BaseURL + TEXT("/weather"));
+		}
 		Request->SetVerb(TEXT("GET"));
 		Request->OnProcessRequestComplete().BindUObject(this, &UDTPHttpDataProvider::OnWeatherResponse);
+		Request->ProcessRequest();
+	}
+
+	// 请求空气质量（真实天气源时，用于填 AQI）
+	if (bUseRealWeather)
+	{
+		TSharedRef<IHttpRequest> Request = HttpModule.CreateRequest();
+		Request->SetURL(FString::Printf(
+			TEXT("%s/v7/air/now?location=%s&key=%s"),
+			*WeatherHost, *WeatherLocation, *WeatherAPIKey));
+		Request->SetVerb(TEXT("GET"));
+		Request->OnProcessRequestComplete().BindUObject(this, &UDTPHttpDataProvider::OnAirResponse);
 		Request->ProcessRequest();
 	}
 
@@ -159,6 +183,19 @@ void UDTPHttpDataProvider::OnAlertsResponse(FHttpRequestPtr Request, FHttpRespon
 	CheckAllRequestsComplete();
 }
 
+void UDTPHttpDataProvider::OnAirResponse(FHttpRequestPtr Request, FHttpResponsePtr Response, bool bWasSuccessful)
+{
+	if (bWasSuccessful && Response.IsValid())
+	{
+		ParseAirJson(Response->GetContentAsString());
+	}
+	else
+	{
+		UE_LOG(LogDTP, Warning, TEXT("[DTP] 空气质量数据请求失败"));
+	}
+	CheckAllRequestsComplete();
+}
+
 void UDTPHttpDataProvider::CheckAllRequestsComplete()
 {
 	PendingRequests--;
@@ -217,8 +254,33 @@ void UDTPHttpDataProvider::ParseWeatherJson(const FString& JsonString)
 	TSharedPtr<FJsonObject> JsonObject;
 	TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(JsonString);
 
-	if (FJsonSerializer::Deserialize(Reader, JsonObject) && JsonObject.IsValid())
+	if (!FJsonSerializer::Deserialize(Reader, JsonObject) || !JsonObject.IsValid())
 	{
+		return;
+	}
+
+	if (bUseRealWeather)
+	{
+		// 和风天气: {"code":"200","now":{"temp":"28","text":"晴","humidity":"60","windSpeed":"9"}}
+		const TSharedPtr<FJsonObject>* NowObj;
+		if (JsonObject->TryGetObjectField(TEXT("now"), NowObj))
+		{
+			FString Text, TempStr, HumidityStr, WindStr;
+			(*NowObj)->TryGetStringField(TEXT("text"), Text);
+			(*NowObj)->TryGetStringField(TEXT("temp"), TempStr);
+			(*NowObj)->TryGetStringField(TEXT("humidity"), HumidityStr);
+			(*NowObj)->TryGetStringField(TEXT("windSpeed"), WindStr);
+
+			CachedWeatherData.WeatherType = MapWeatherText(Text);
+			CachedWeatherData.Temperature = FCString::Atof(*TempStr);
+			CachedWeatherData.Humidity = FCString::Atof(*HumidityStr);
+			CachedWeatherData.WindSpeed = FCString::Atof(*WindStr);
+			// AQI 由 ParseAirJson 单独填充
+		}
+	}
+	else
+	{
+		// 本地测试服务器约定: {"data":{...}}
 		const TSharedPtr<FJsonObject>* DataObj;
 		if (JsonObject->TryGetObjectField(TEXT("data"), DataObj))
 		{
@@ -265,5 +327,52 @@ void UDTPHttpDataProvider::ParseAlertsJson(const FString& JsonString)
 				}
 			}
 		}
+	}
+}
+
+void UDTPHttpDataProvider::ParseAirJson(const FString& JsonString)
+{
+	// 和风空气质量: {"code":"200","now":{"aqi":"52",...}}
+	TSharedPtr<FJsonObject> JsonObject;
+	TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(JsonString);
+
+	if (FJsonSerializer::Deserialize(Reader, JsonObject) && JsonObject.IsValid())
+	{
+		const TSharedPtr<FJsonObject>* NowObj;
+		if (JsonObject->TryGetObjectField(TEXT("now"), NowObj))
+		{
+			FString AqiStr;
+			if ((*NowObj)->TryGetStringField(TEXT("aqi"), AqiStr))
+			{
+				CachedWeatherData.AQI = FCString::Atoi(*AqiStr);
+			}
+		}
+	}
+}
+
+EDTPWeatherType UDTPHttpDataProvider::MapWeatherText(const FString& Text) const
+{
+	if (Text.Contains(TEXT("雨"))) return EDTPWeatherType::Rainy;
+	if (Text.Contains(TEXT("雪"))) return EDTPWeatherType::Snowy;
+	if (Text.Contains(TEXT("晴"))) return EDTPWeatherType::Sunny;
+	return EDTPWeatherType::Cloudy; // 多云/阴/雾等归为多云
+}
+
+void UDTPHttpDataProvider::SetWeatherSource(const FString& APIKey, const FString& Location, const FString& Host)
+{
+	WeatherAPIKey = APIKey;
+	WeatherLocation = Location;
+	if (!Host.IsEmpty())
+	{
+		WeatherAPIHost = Host;
+	}
+	if (WeatherAPIKey.IsEmpty())
+	{
+		UE_LOG(LogDTP, Log, TEXT("[DTP] 真实天气源已关闭，退回本地假数据"));
+	}
+	else
+	{
+		UE_LOG(LogDTP, Log, TEXT("[DTP] 真实天气源已配置: location=%s host=%s"),
+			*WeatherLocation, *WeatherAPIHost);
 	}
 }

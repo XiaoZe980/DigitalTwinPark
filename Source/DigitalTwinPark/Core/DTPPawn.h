@@ -10,6 +10,7 @@
 class USpringArmComponent;
 class UCameraComponent;
 class UFloatingPawnMovement;
+class UDTPCameraManager;
 
 /**
  * 数字孪生观察者Pawn
@@ -49,9 +50,17 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DigitalTwinPark|Movement")
 	float MoveSpeed = 2000.0f;
 
-	/** 旋转灵敏度 */
+	/** 旋转灵敏度（鼠标像素增量需除以 ~3 才能手感自然） */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DigitalTwinPark|Movement")
-	float LookSensitivity = 1.0f;
+	float LookSensitivity = 0.4f;
+
+	/** 俯仰角最小限制（负值低头看，防止视角翻转） */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DigitalTwinPark|Movement")
+	float MinLookPitch = -85.0f;
+
+	/** 俯仰角最大限制（0 为水平，园区浏览不需要仰视） */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DigitalTwinPark|Movement")
+	float MaxLookPitch = 0.0f;
 
 	/** 缩放速度 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DigitalTwinPark|Movement")
@@ -63,6 +72,10 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DigitalTwinPark|Movement")
 	float MaxZoomDistance = 20000.0f;
+
+	/** 缩放插值速度（线性逼近目标臂长，越大越跟手） */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DigitalTwinPark|Movement")
+	float ZoomInterpSpeed = 10.0f;
 
 	// ========================================================================
 	// 组件
@@ -77,6 +90,16 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "DigitalTwinPark|Components")
 	TObjectPtr<UCameraComponent> Camera;
 
+	/** 相机管理器（预设视角飞行、鸟瞰切换等） */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "DigitalTwinPark|Components")
+	TObjectPtr<UDTPCameraManager> CameraManager;
+
 protected:
 	virtual void BeginPlay() override;
+	virtual void Tick(float DeltaTime) override;
+	virtual void PossessedBy(AController* NewController) override;
+
+private:
+	/** 缩放目标臂长（Tick 中线性插值逼近，避免滚轮跳变卡顿） */
+	float DesiredArmLength = 5000.0f;
 };

@@ -54,6 +54,7 @@ Content/*.py
 
 # 大型资产包（不进git，用网盘/U盘单独管理）
 Content/ModernCityEnvironment01/
+Content/UltraDynamicSky/
 
 # Mac
 .DS_Store

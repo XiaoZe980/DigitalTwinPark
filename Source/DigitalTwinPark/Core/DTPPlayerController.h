@@ -10,6 +10,10 @@
 class UInputAction;
 class UInputMappingContext;
 class ADTPBuildingActor;
+class UDTPHUDWidget;
+class UDTPCameraPreset;
+class ADTPBuildingManager;
+class ADTPDayNightCycle;
 
 /**
  * 数字孪生玩家控制器
@@ -78,6 +82,42 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "DigitalTwinPark|Input")
 	TObjectPtr<UInputAction> IA_TouchPinch;
 
+	// ========================================================================
+	// UI
+	// ========================================================================
+
+	/** HUD Widget 蓝图类（默认加载 /Game/UI/WBP_HUD） */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "DigitalTwinPark|UI")
+	TSubclassOf<UDTPHUDWidget> HUDWidgetClass;
+
+	/** 当前 HUD Widget 实例 */
+	UPROPERTY()
+	TObjectPtr<UDTPHUDWidget> HUDWidget;
+
+	/** 关闭建筑信息卡片（取消显示状态，数据刷新不再弹出） */
+	UFUNCTION(BlueprintCallable, Category = "DigitalTwinPark|UI")
+	void CloseBuildingInfoCard();
+
+	/** 飞行到指定相机预设（HUD 预设按钮调用，转发到 Pawn 的相机管理器） */
+	UFUNCTION(BlueprintCallable, Category = "DigitalTwinPark|Camera")
+	void FlyToCameraPreset(UDTPCameraPreset* Preset);
+
+	/** 相机聚焦到指定建筑（HUD 聚焦按钮调用，转发到 Pawn 的相机管理器） */
+	UFUNCTION(BlueprintCallable, Category = "DigitalTwinPark|Camera")
+	void FocusOnBuilding(ADTPBuildingActor* Building);
+
+	/** 告警联动聚焦开关（默认关闭，避免游览中突然跳转打断体验） */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DigitalTwinPark|Camera")
+	bool bEnableAlertFocus = false;
+
+	/** 设置告警联动聚焦开关 */
+	UFUNCTION(BlueprintCallable, Category = "DigitalTwinPark|Camera")
+	void SetAlertFocusEnabled(bool bEnabled);
+
+	/** 切换白天/夜晚（驱动场景中的 DTPDayNightCycle） */
+	UFUNCTION(BlueprintCallable, Category = "DigitalTwinPark|Environment")
+	void SetDayNight(bool bNight);
+
 protected:
 	virtual void BeginPlay() override;
 	virtual void SetupInputComponent() override;
@@ -104,13 +144,44 @@ private:
 	/** 从资源路径加载所有 Input Action 和 IMC（不依赖蓝图配置） */
 	void LoadInputAssets();
 
+	/** 创建 HUD 并绑定建筑选中事件 */
+	void SetupHUD();
+
+	/** 建筑选中回调 → 显示建筑信息 */
+	UFUNCTION()
+	void HandleBuildingSelected(ADTPBuildingActor* Building);
+
+	/** 取消选择回调 → 隐藏建筑信息 */
+	UFUNCTION()
+	void HandleBuildingDeselected();
+
+	/** 数据刷新回调 → 卡片可见时用最新数据刷新 */
+	UFUNCTION()
+	void HandleDataUpdated();
+
+	/** 告警刷新回调 → 新告警出现时相机聚焦到对应建筑 */
+	UFUNCTION()
+	void HandleAlertUpdated();
+
+	/** 查找场景中的建筑管理器 */
+	ADTPBuildingManager* FindBuildingManager() const;
+
 	/** 当前选中建筑 */
 	UPROPERTY()
 	TObjectPtr<ADTPBuildingActor> SelectedBuilding;
+
+	/** 已处理过（聚焦过）的告警 ID，避免重复聚焦 */
+	TArray<FString> HandledAlertIds;
+
+	/** 上次告警聚焦时间（冷却，避免每2秒刷新都聚焦太吵） */
+	float LastAlertFocusTime = -100.0f;
 
 	/** 鼠标位置缓存 */
 	FVector2D LastMousePosition;
 
 	/** 是否正在拖拽 */
 	bool bIsDragging = false;
+
+	/** 建筑信息卡片是否可见（关闭按钮会置 false） */
+	bool bInfoCardVisible = false;
 };

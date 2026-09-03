@@ -48,9 +48,17 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "DigitalTwinPark|Data")
 	void UseHttpData(const FString& BaseURL = TEXT("http://localhost:8080/api"));
 
+	/** 配置真实天气源（和风天气）。需先 UseHttpData，APIKey 非空时天气走真实API。Host 为账号专属 API Host，留空用默认 */
+	UFUNCTION(BlueprintCallable, Category = "DigitalTwinPark|Data")
+	void SetWeatherSource(const FString& APIKey, const FString& Location, const FString& Host = TEXT(""));
+
 	/** 设置数据更新间隔（秒） */
 	UFUNCTION(BlueprintCallable, Category = "DigitalTwinPark|Data")
 	void SetUpdateInterval(float Seconds);
+
+	/** 启动定时刷新（World 就绪后调用，如 GameMode BeginPlay） */
+	UFUNCTION(BlueprintCallable, Category = "DigitalTwinPark|Data")
+	void StartPeriodicUpdates();
 
 	// ========================================================================
 	// 数据获取（从缓存读取，非阻塞）

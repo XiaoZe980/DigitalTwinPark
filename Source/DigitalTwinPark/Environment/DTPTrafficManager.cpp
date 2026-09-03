@@ -5,6 +5,8 @@
 #include "DigitalTwinPark.h"
 #include "Components/SplineComponent.h"
 #include "Components/StaticMeshComponent.h"
+#include "Components/SkeletalMeshComponent.h"
+#include "Engine/World.h"
 
 ADTPTrafficManager::ADTPTrafficManager()
 {
@@ -45,10 +47,20 @@ void ADTPTrafficManager::SpawnVehicles()
 		{
 			Vehicle.Mesh->DestroyComponent();
 		}
+		if (Vehicle.SkeletalMesh)
+		{
+			Vehicle.SkeletalMesh->DestroyComponent();
+		}
+		if (Vehicle.VehicleActor)
+		{
+			Vehicle.VehicleActor->Destroy();
+		}
 	}
 	Vehicles.Empty();
 
-	if (VehicleMeshes.IsEmpty() || !RoadSpline) return;
+	// 三类车辆候选池：蓝图 / 静态网格 / 骨骼网格，混合随机
+	const int32 TotalCandidates = VehicleClasses.Num() + VehicleMeshes.Num() + SkeletalMeshes.Num();
+	if (!RoadSpline || TotalCandidates == 0) return;
 
 	const float SplineLength = RoadSpline->GetSplineLength();
 	const float Spacing = SplineLength / FMath::Max(1, TargetVehicleCount);
@@ -57,25 +69,45 @@ void ADTPTrafficManager::SpawnVehicles()
 	{
 		FVehicleInstance Vehicle;
 		Vehicle.SplineDistance = i * Spacing + FMath::FRandRange(0.0f, Spacing * 0.5f);
-		Vehicle.Speed = TargetAverageSpeed * (0.8f + FMath::FRandRange(0.0f, 0.4f)); // 速度随机变化±20%
+		// 每辆车独立速度：40%~160% 随机，拉开快慢差异（避免车流整齐划一）
+		Vehicle.Speed = TargetAverageSpeed * FMath::FRandRange(0.4f, 1.6f);
 
-		// 创建车辆Mesh
-		Vehicle.Mesh = NewObject<UStaticMeshComponent>(this);
-		Vehicle.Mesh->RegisterComponent();
-		Vehicle.Mesh->AttachToComponent(RoadSpline, FAttachmentTransformRules::KeepRelativeTransform);
+		const FVector Location = RoadSpline->GetLocationAtDistanceAlongSpline(Vehicle.SplineDistance, ESplineCoordinateSpace::World);
+		const FRotator Rotation = RoadSpline->GetRotationAtDistanceAlongSpline(Vehicle.SplineDistance, ESplineCoordinateSpace::World);
 
-		// 随机选择车辆模型
-		const int32 MeshIdx = FMath::RandRange(0, VehicleMeshes.Num() - 1);
-		Vehicle.Mesh->SetStaticMesh(VehicleMeshes[MeshIdx]);
-
-		// 初始位置
-		FVector Location = RoadSpline->GetLocationAtDistanceAlongSpline(Vehicle.SplineDistance, ESplineCoordinateSpace::World);
-		Vehicle.Mesh->SetWorldLocation(Location);
+		const int32 Pick = FMath::RandRange(0, TotalCandidates - 1);
+		if (Pick < VehicleClasses.Num())
+		{
+			// 蓝图车辆：生成完整车辆 Actor
+			Vehicle.VehicleActor = GetWorld()->SpawnActor<AActor>(VehicleClasses[Pick], Location, Rotation);
+		}
+		else if (Pick < VehicleClasses.Num() + VehicleMeshes.Num())
+		{
+			// 静态网格车
+			const int32 MeshIdx = Pick - VehicleClasses.Num();
+			Vehicle.Mesh = NewObject<UStaticMeshComponent>(this);
+			Vehicle.Mesh->RegisterComponent();
+			Vehicle.Mesh->AttachToComponent(RoadSpline, FAttachmentTransformRules::KeepRelativeTransform);
+			Vehicle.Mesh->SetStaticMesh(VehicleMeshes[MeshIdx]);
+			Vehicle.Mesh->SetWorldLocation(Location);
+			Vehicle.Mesh->SetWorldRotation(Rotation);
+		}
+		else
+		{
+			// 骨骼网格车
+			const int32 SkelIdx = Pick - VehicleClasses.Num() - VehicleMeshes.Num();
+			Vehicle.SkeletalMesh = NewObject<USkeletalMeshComponent>(this);
+			Vehicle.SkeletalMesh->RegisterComponent();
+			Vehicle.SkeletalMesh->AttachToComponent(RoadSpline, FAttachmentTransformRules::KeepRelativeTransform);
+			Vehicle.SkeletalMesh->SetSkeletalMesh(SkeletalMeshes[SkelIdx]);
+			Vehicle.SkeletalMesh->SetWorldLocation(Location);
+			Vehicle.SkeletalMesh->SetWorldRotation(Rotation);
+		}
 
 		Vehicles.Add(Vehicle);
 	}
 
-	UE_LOG(LogDTP, Log, TEXT("[DTP] 交通模拟: 生成 %d 辆车"), Vehicles.Num());
+	UE_LOG(LogDTP, Log, TEXT("[DTP] 交通模拟: 生成 %d 辆车（候选 %d 类）"), Vehicles.Num(), TotalCandidates);
 }
 
 void ADTPTrafficManager::UpdateVehiclePositions(float DeltaTime)
@@ -86,8 +118,6 @@ void ADTPTrafficManager::UpdateVehiclePositions(float DeltaTime)
 
 	for (auto& Vehicle : Vehicles)
 	{
-		if (!Vehicle.Mesh) continue;
-
 		// 沿Spline移动
 		Vehicle.SplineDistance += Vehicle.Speed * DeltaTime * 100.0f; // cm/s
 
@@ -98,10 +128,23 @@ void ADTPTrafficManager::UpdateVehiclePositions(float DeltaTime)
 		}
 
 		// 更新位置和旋转
-		FVector Location = RoadSpline->GetLocationAtDistanceAlongSpline(Vehicle.SplineDistance, ESplineCoordinateSpace::World);
-		FRotator Rotation = RoadSpline->GetRotationAtDistanceAlongSpline(Vehicle.SplineDistance, ESplineCoordinateSpace::World);
+		const FVector Location = RoadSpline->GetLocationAtDistanceAlongSpline(Vehicle.SplineDistance, ESplineCoordinateSpace::World);
+		const FRotator Rotation = RoadSpline->GetRotationAtDistanceAlongSpline(Vehicle.SplineDistance, ESplineCoordinateSpace::World);
 
-		Vehicle.Mesh->SetWorldLocation(Location);
-		Vehicle.Mesh->SetWorldRotation(Rotation);
+		if (Vehicle.VehicleActor)
+		{
+			Vehicle.VehicleActor->SetActorLocation(Location);
+			Vehicle.VehicleActor->SetActorRotation(Rotation);
+		}
+		else if (Vehicle.Mesh)
+		{
+			Vehicle.Mesh->SetWorldLocation(Location);
+			Vehicle.Mesh->SetWorldRotation(Rotation);
+		}
+		else if (Vehicle.SkeletalMesh)
+		{
+			Vehicle.SkeletalMesh->SetWorldLocation(Location);
+			Vehicle.SkeletalMesh->SetWorldRotation(Rotation);
+		}
 	}
 }

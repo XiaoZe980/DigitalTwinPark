@@ -27,6 +27,10 @@
 			"Enabled": true
 		},
 		{
+			"Name": "PixelStreaming2",
+			"Enabled": true
+		},
+		{
 			"Name": "DatasmithImporter",
 			"Enabled": true,
 			"TargetAllowList": [

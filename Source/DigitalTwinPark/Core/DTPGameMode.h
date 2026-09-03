@@ -14,4 +14,7 @@ class DIGITALTWINPARK_API ADTPGameMode : public AGameModeBase
 
 public:
 	ADTPGameMode();
+
+protected:
+	virtual void BeginPlay() override;
 };
