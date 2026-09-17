@@ -39,6 +39,26 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "DigitalTwinPark|Building")
 	void SetHighlighted(bool bHighlighted);
 
+	// ========================================================================
+	// 热力可视化（按实时数据给外轮廓变色）
+	// ========================================================================
+
+	/** 设置热力颜色（改外轮廓材质 Color 参数，绿→黄→红） */
+	UFUNCTION(BlueprintCallable, Category = "DigitalTwinPark|Building")
+	void SetHeatColor(FLinearColor Color);
+
+	/** 开/关热力模式（开启时外轮廓常显） */
+	UFUNCTION(BlueprintCallable, Category = "DigitalTwinPark|Building")
+	void SetHeatMode(bool bEnabled);
+
+	/** 是否处于热力模式 */
+	UFUNCTION(BlueprintPure, Category = "DigitalTwinPark|Building")
+	bool IsHeatMode() const { return bHeatMode; }
+
+	/** 选中高亮颜色（非热力模式下选中建筑时外轮廓的颜色） */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DigitalTwinPark|Building|Highlight")
+	FLinearColor SelectionColor = FLinearColor(0.10f, 0.80f, 1.00f, 1.0f);
+
 	/** 是否高亮 */
 	UFUNCTION(BlueprintPure, Category = "DigitalTwinPark|Building")
 	bool IsHighlighted() const { return bIsHighlighted; }
@@ -92,6 +112,9 @@ protected:
 	/** 更新高亮材质 */
 	void UpdateHighlightMaterial();
 
+	/** 把颜色写到外轮廓材质参数 */
+	void ApplyOutlineColor(const FLinearColor& Color);
+
 	// 高亮材质
 	UPROPERTY()
 	TObjectPtr<UMaterialInterface> HighlightMaterial;
@@ -100,6 +123,10 @@ protected:
 	TObjectPtr<UMaterialInterface> OriginalMaterial;
 
 	bool bIsHighlighted = false;
+
+	// 热力模式
+	bool bHeatMode = false;
+	FLinearColor CurrentHeatColor = FLinearColor::White;
 
 	// 实时数据
 	int32 CurrentOccupancy = 0;

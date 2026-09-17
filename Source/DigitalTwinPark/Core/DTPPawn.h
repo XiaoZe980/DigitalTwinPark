@@ -42,6 +42,14 @@ public:
 	/** 缩放（滚轮或捏合手势） */
 	void Zoom(float Amount);
 
+	/** 设置相机目标臂长（聚焦建筑等场景调用，Tick 会平滑插值过去） */
+	UFUNCTION(BlueprintCallable, Category = "DigitalTwinPark|Camera")
+	void SetDesiredArmLength(float Length);
+
+	/** 获取当前目标臂长 */
+	UFUNCTION(BlueprintPure, Category = "DigitalTwinPark|Camera")
+	float GetDesiredArmLength() const { return DesiredArmLength; }
+
 	// ========================================================================
 	// 配置
 	// ========================================================================

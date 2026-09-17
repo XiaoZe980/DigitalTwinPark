@@ -38,6 +38,22 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "DigitalTwinPark|Building")
 	void RefreshBuildings();
 
+	// ========================================================================
+	// 热力变色（按实时能耗给建筑外轮廓上色）
+	// ========================================================================
+
+	/** 开/关建筑热力变色（绿=低负载 → 黄=中 → 红=高负载） */
+	UFUNCTION(BlueprintCallable, Category = "DigitalTwinPark|Building")
+	void SetHeatMapEnabled(bool bEnabled);
+
+	/** 是否开启热力变色 */
+	UFUNCTION(BlueprintPure, Category = "DigitalTwinPark|Building")
+	bool IsHeatMapEnabled() const { return bHeatMapEnabled; }
+
+	/** 热力映射上限（能耗 kW，达到此值显示红色） */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DigitalTwinPark|Building|HeatMap")
+	float HeatMapMaxPower = 1000.0f;
+
 protected:
 	virtual void BeginPlay() override;
 
@@ -45,6 +61,12 @@ protected:
 	UFUNCTION()
 	void HandleBuildingDataUpdated();
 
+	/** 按当前能耗刷新所有建筑的热力颜色 */
+	void UpdateHeatMap();
+
 	UPROPERTY()
 	TArray<ADTPBuildingActor*> RegisteredBuildings;
+
+	/** 热力变色是否开启 */
+	bool bHeatMapEnabled = false;
 };

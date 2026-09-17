@@ -4,6 +4,7 @@
 #include "DTPMockDataProvider.h"
 #include "DigitalTwinPark.h"
 #include "Engine/World.h"
+#include "HAL/PlatformTime.h"
 
 // ============================================================================
 // 模拟建筑名称和ID
@@ -33,10 +34,20 @@ UDTPMockDataProvider::UDTPMockDataProvider()
 void UDTPMockDataProvider::StartFetching()
 {
 	bIsFetching = true;
+
+	// 高频：建筑人数/能耗、交通流量（保留实时跳动感）
 	GenerateMockBuildingData();
-	GenerateMockWeatherData();
 	GenerateMockTrafficData();
-	GenerateMockAlerts();
+
+	// 低频：天气、告警（变化太频繁会让场景天气和告警弹窗乱跳）
+	const double Now = FPlatformTime::Seconds();
+	if (LastSlowDataRefreshTime <= 0.0 || Now - LastSlowDataRefreshTime >= SlowDataRefreshInterval)
+	{
+		GenerateMockWeatherData();
+		GenerateMockAlerts();
+		LastSlowDataRefreshTime = Now;
+	}
+
 	OnDataUpdated.Broadcast();
 
 	UE_LOG(LogDTP, Log, TEXT("[DTP] MockDataProvider 开始生成模拟数据"));

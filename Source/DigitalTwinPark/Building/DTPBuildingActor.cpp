@@ -32,6 +32,11 @@ ADTPBuildingActor::ADTPBuildingActor()
 	OutlineMesh->SetVisibility(false);
 	OutlineMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 
+	// 建筑网格（默认创建，蓝图里可直接指定静态网格）
+	BuildingMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("BuildingMesh"));
+	BuildingMesh->SetupAttachment(RootScene);
+	BuildingMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+
 	// 信息悬浮组件
 	InfoWidget = CreateDefaultSubobject<UWidgetComponent>(TEXT("InfoWidget"));
 	InfoWidget->SetupAttachment(RootScene);
@@ -54,10 +59,16 @@ void ADTPBuildingActor::SetHighlighted(bool bHighlighted)
 {
 	bIsHighlighted = bHighlighted;
 
-	// 外轮廓可见性
+	// 外轮廓可见性（选中 或 热力模式 时显示）
 	if (OutlineMesh)
 	{
-		OutlineMesh->SetVisibility(bHighlighted);
+		OutlineMesh->SetVisibility(bHighlighted || bHeatMode);
+
+		// 非热力模式用固定的选中高亮色，避免残留上一次的热力颜色
+		if (!bHeatMode)
+		{
+			ApplyOutlineColor(SelectionColor);
+		}
 	}
 
 	// 信息悬浮Widget
@@ -99,4 +110,35 @@ void ADTPBuildingActor::UpdateHighlightMaterial()
 {
 	// 子类或蓝图可重载此方法实现自定义高亮效果
 	// 默认实现：修改OutlineMesh的材质
+}
+
+void ADTPBuildingActor::ApplyOutlineColor(const FLinearColor& Color)
+{
+	if (OutlineMesh)
+	{
+		// 改外轮廓材质 Color 参数（材质需有名为 Color 的 Vector 参数）
+		OutlineMesh->SetVectorParameterValueOnMaterials(
+			TEXT("Color"), FVector(Color.R, Color.G, Color.B));
+	}
+}
+
+void ADTPBuildingActor::SetHeatColor(FLinearColor Color)
+{
+	CurrentHeatColor = Color;
+	// 仅热力模式下才覆盖外轮廓颜色，避免影响选中高亮
+	if (bHeatMode)
+	{
+		ApplyOutlineColor(Color);
+	}
+}
+
+void ADTPBuildingActor::SetHeatMode(bool bEnabled)
+{
+	bHeatMode = bEnabled;
+	if (OutlineMesh)
+	{
+		OutlineMesh->SetVisibility(bEnabled || bIsHighlighted);
+		// 开启热力用当前热力色；关闭则恢复选中高亮色
+		ApplyOutlineColor(bEnabled ? CurrentHeatColor : SelectionColor);
+	}
 }

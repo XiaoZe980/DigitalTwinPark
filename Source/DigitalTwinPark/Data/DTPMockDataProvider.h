@@ -59,6 +59,12 @@ private:
 	float UpdateInterval = 2.0f;
 	bool bIsFetching = false;
 
+	/** 天气/告警的低频刷新间隔（秒）：变化太频繁会让场景天气和弹窗乱跳 */
+	float SlowDataRefreshInterval = 10.0f;
+
+	/** 上次生成天气/告警的时间 */
+	double LastSlowDataRefreshTime = 0.0;
+
 	// 随机种子
 	FRandomStream RandomStream;
 };

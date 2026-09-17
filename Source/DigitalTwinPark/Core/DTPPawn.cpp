@@ -130,3 +130,9 @@ void ADTPPawn::Zoom(float Amount)
 		MaxZoomDistance
 	);
 }
+
+void ADTPPawn::SetDesiredArmLength(float Length)
+{
+	// 聚焦等场景直接设定臂长（Tick 会平滑插值过去）
+	DesiredArmLength = FMath::Clamp(Length, MinZoomDistance, MaxZoomDistance);
+}

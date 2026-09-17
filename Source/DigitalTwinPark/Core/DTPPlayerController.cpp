@@ -204,6 +204,9 @@ void ADTPPlayerController::CloseBuildingInfoCard()
 	{
 		HUDWidget->HideBuildingInfo();
 	}
+
+	// 同时取消建筑选中，清除场景高亮（否则关掉卡片后建筑还是一直亮着）
+	DeselectBuilding();
 }
 
 void ADTPPlayerController::SetupInputComponent()
@@ -455,6 +458,46 @@ void ADTPPlayerController::SetAlertFocusEnabled(bool bEnabled)
 {
 	bEnableAlertFocus = bEnabled;
 	UE_LOG(LogDTP, Log, TEXT("[DTP] 告警联动聚焦: %s"), bEnabled ? TEXT("开") : TEXT("关"));
+}
+
+void ADTPPlayerController::FocusOnAlertBuilding(int32 AlertIndex)
+{
+	UGameInstance* GameInstance = GetGameInstance();
+	UDTPDataSubsystem* Data = GameInstance ? GameInstance->GetSubsystem<UDTPDataSubsystem>() : nullptr;
+	if (!Data)
+	{
+		return;
+	}
+
+	// 告警弹窗里的第 N 行对应告警数组第 N 条
+	const TArray<FDTPAlertData>& Alerts = Data->GetAlertData();
+	if (!Alerts.IsValidIndex(AlertIndex))
+	{
+		UE_LOG(LogDTP, Log, TEXT("[DTP] FocusOnAlertBuilding: 告警索引 %d 无效"), AlertIndex);
+		return;
+	}
+
+	ADTPBuildingManager* Mgr = FindBuildingManager();
+	ADTPBuildingActor* Building = Mgr ? Mgr->FindBuildingById(Alerts[AlertIndex].BuildingId) : nullptr;
+	if (Building)
+	{
+		FocusOnBuilding(Building);
+		UE_LOG(LogDTP, Log, TEXT("[DTP] 点击告警定位: %s -> %s"),
+			*Alerts[AlertIndex].Title, *Alerts[AlertIndex].BuildingId);
+	}
+}
+
+void ADTPPlayerController::SetHeatMapEnabled(bool bEnabled)
+{
+	// HUD 热力按钮 → 查找场景中的 BuildingManager 并开关热力变色
+	if (ADTPBuildingManager* Mgr = FindBuildingManager())
+	{
+		Mgr->SetHeatMapEnabled(bEnabled);
+	}
+	else
+	{
+		UE_LOG(LogDTP, Warning, TEXT("[DTP] SetHeatMapEnabled: 场景中未找到 BuildingManager"));
+	}
 }
 
 void ADTPPlayerController::SetDayNight(bool bNight)

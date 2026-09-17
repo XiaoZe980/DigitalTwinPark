@@ -53,6 +53,30 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DigitalTwinPark|Weather")
 	float WeatherTransitionTime = 2.0f;
 
+	// ========================================================================
+	// Ultra Dynamic Weather 联动（天气数据 → 真实天气视觉）
+	// ========================================================================
+
+	/** 是否驱动场景中的 Ultra Dynamic Weather（留空预设则自动按默认路径加载） */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DigitalTwinPark|Weather|UDW")
+	bool bDriveUDW = true;
+
+	/** 晴天预设（留空自动加载 Clear_Skies） */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DigitalTwinPark|Weather|UDW")
+	TObjectPtr<UObject> SunnyPreset;
+
+	/** 多云预设（留空自动加载 Partly_Cloudy） */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DigitalTwinPark|Weather|UDW")
+	TObjectPtr<UObject> CloudyPreset;
+
+	/** 雨天预设（留空自动加载 Rain） */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DigitalTwinPark|Weather|UDW")
+	TObjectPtr<UObject> RainyPreset;
+
+	/** 雪天预设（留空自动加载 Snow） */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DigitalTwinPark|Weather|UDW")
+	TObjectPtr<UObject> SnowyPreset;
+
 protected:
 	virtual void BeginPlay() override;
 
@@ -66,6 +90,16 @@ private:
 
 	/** 清理粒子效果 */
 	void ClearWeatherEffects();
+
+	/** 数据刷新回调 → 把最新天气数据应用到场景 */
+	UFUNCTION()
+	void HandleWeatherDataUpdated();
+
+	/** 按天气类型取对应预设（未配置时按默认路径加载） */
+	UObject* ResolvePreset(EDTPWeatherType Weather);
+
+	/** 反射调用场景中 UDW 的 Change Weather，驱动真实天气视觉 */
+	void ApplyWeatherToUDW(EDTPWeatherType Weather);
 
 	EDTPWeatherType CurrentWeather = EDTPWeatherType::Sunny;
 

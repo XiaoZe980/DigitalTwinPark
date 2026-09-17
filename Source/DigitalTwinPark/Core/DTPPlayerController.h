@@ -106,6 +106,14 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "DigitalTwinPark|Camera")
 	void FocusOnBuilding(ADTPBuildingActor* Building);
 
+	/** 聚焦到指定索引告警对应的建筑（点击告警弹窗某条时调用，0 = 第一条） */
+	UFUNCTION(BlueprintCallable, Category = "DigitalTwinPark|Camera")
+	void FocusOnAlertBuilding(int32 AlertIndex);
+
+	/** 开关建筑热力变色（HUD 按钮调用，内部查找场景中的 BuildingManager） */
+	UFUNCTION(BlueprintCallable, Category = "DigitalTwinPark|Building")
+	void SetHeatMapEnabled(bool bEnabled);
+
 	/** 告警联动聚焦开关（默认关闭，避免游览中突然跳转打断体验） */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DigitalTwinPark|Camera")
 	bool bEnableAlertFocus = false;
