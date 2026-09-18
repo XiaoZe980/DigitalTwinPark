@@ -272,6 +272,9 @@ void ADTPPlayerController::Tick(float DeltaTime)
 void ADTPPlayerController::OnMove(const FInputActionValue& Value)
 {
 	FVector2D Input = Value.Get<FVector2D>();
+	if (Input.IsNearlyZero()) return;
+	StopAutoTourOnInput(); // 用户手动操作时中断巡游
+
 	if (ADTPPawn* MyPawn = GetPawn<ADTPPawn>())
 	{
 		MyPawn->MoveForward(Input.Y);
@@ -282,6 +285,9 @@ void ADTPPlayerController::OnMove(const FInputActionValue& Value)
 void ADTPPlayerController::OnMoveUpDown(const FInputActionValue& Value)
 {
 	float Input = Value.Get<float>();
+	if (FMath::IsNearlyZero(Input)) return;
+	StopAutoTourOnInput();
+
 	if (ADTPPawn* MyPawn = GetPawn<ADTPPawn>())
 	{
 		MyPawn->MoveUp(Input);
@@ -291,6 +297,9 @@ void ADTPPlayerController::OnMoveUpDown(const FInputActionValue& Value)
 void ADTPPlayerController::OnLook(const FInputActionValue& Value)
 {
 	FVector2D Input = Value.Get<FVector2D>();
+	if (Input.IsNearlyZero()) return;
+	StopAutoTourOnInput();
+
 	if (ADTPPawn* MyPawn = GetPawn<ADTPPawn>())
 	{
 		MyPawn->LookAt(Input.X, Input.Y);
@@ -300,6 +309,9 @@ void ADTPPlayerController::OnLook(const FInputActionValue& Value)
 void ADTPPlayerController::OnZoom(const FInputActionValue& Value)
 {
 	float Input = Value.Get<float>();
+	if (FMath::IsNearlyZero(Input)) return;
+	StopAutoTourOnInput();
+
 	if (ADTPPawn* MyPawn = GetPawn<ADTPPawn>())
 	{
 		MyPawn->Zoom(Input);
@@ -497,6 +509,49 @@ void ADTPPlayerController::SetHeatMapEnabled(bool bEnabled)
 	else
 	{
 		UE_LOG(LogDTP, Warning, TEXT("[DTP] SetHeatMapEnabled: 场景中未找到 BuildingManager"));
+	}
+}
+
+void ADTPPlayerController::SetAutoTourEnabled(bool bEnabled, float Interval)
+{
+	ADTPPawn* MyPawn = Cast<ADTPPawn>(GetPawn());
+	if (!MyPawn || !MyPawn->CameraManager)
+	{
+		UE_LOG(LogDTP, Warning, TEXT("[DTP] SetAutoTourEnabled: 未找到相机管理器"));
+		return;
+	}
+
+	if (bEnabled)
+	{
+		MyPawn->CameraManager->StartAutoTour(Interval);
+	}
+	else
+	{
+		MyPawn->CameraManager->StopAutoTour();
+	}
+}
+
+bool ADTPPlayerController::IsAutoTourActive() const
+{
+	if (ADTPPawn* MyPawn = Cast<ADTPPawn>(GetPawn()))
+	{
+		if (MyPawn->CameraManager)
+		{
+			return MyPawn->CameraManager->IsAutoTourActive();
+		}
+	}
+	return false;
+}
+
+void ADTPPlayerController::StopAutoTourOnInput()
+{
+	// 仅在巡游进行中才做处理，避免常规操作的额外开销
+	if (ADTPPawn* MyPawn = Cast<ADTPPawn>(GetPawn()))
+	{
+		if (MyPawn->CameraManager && MyPawn->CameraManager->IsAutoTourActive())
+		{
+			MyPawn->CameraManager->StopAutoTour();
+		}
 	}
 }
 

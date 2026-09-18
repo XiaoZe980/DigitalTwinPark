@@ -114,6 +114,14 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "DigitalTwinPark|Building")
 	void SetHeatMapEnabled(bool bEnabled);
 
+	/** 开关自动巡游（HUD 巡游按钮调用，Interval = 每个视角停留秒数） */
+	UFUNCTION(BlueprintCallable, Category = "DigitalTwinPark|Camera")
+	void SetAutoTourEnabled(bool bEnabled, float Interval = 8.0f);
+
+	/** 是否正在自动巡游 */
+	UFUNCTION(BlueprintPure, Category = "DigitalTwinPark|Camera")
+	bool IsAutoTourActive() const;
+
 	/** 告警联动聚焦开关（默认关闭，避免游览中突然跳转打断体验） */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DigitalTwinPark|Camera")
 	bool bEnableAlertFocus = false;
@@ -173,6 +181,9 @@ private:
 
 	/** 查找场景中的建筑管理器 */
 	ADTPBuildingManager* FindBuildingManager() const;
+
+	/** 用户手动操作相机时中断自动巡游 */
+	void StopAutoTourOnInput();
 
 	/** 当前选中建筑 */
 	UPROPERTY()

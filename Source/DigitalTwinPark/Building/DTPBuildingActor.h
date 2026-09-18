@@ -8,6 +8,7 @@
 #include "DTPBuildingActor.generated.h"
 
 class UDTPBuildingDataAsset;
+class UDTPBuildingLabelWidget;
 struct FDTPBuildingData;
 
 /**
@@ -58,6 +59,26 @@ public:
 	/** 选中高亮颜色（非热力模式下选中建筑时外轮廓的颜色） */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DigitalTwinPark|Building|Highlight")
 	FLinearColor SelectionColor = FLinearColor(0.10f, 0.80f, 1.00f, 1.0f);
+
+	// ========================================================================
+	// 数据浮动标签（建筑头顶常显）
+	// ========================================================================
+
+	/** 数据标签 Widget 类（留空则不显示浮动标签） */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DigitalTwinPark|Building|Label")
+	TSubclassOf<UDTPBuildingLabelWidget> LabelWidgetClass;
+
+	/** 是否常显数据标签（关闭则恢复为选中时才显示信息组件） */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DigitalTwinPark|Building|Label")
+	bool bShowDataLabel = false;
+
+	/** 标签距建筑原点的额外高度（微调悬浮位置） */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DigitalTwinPark|Building|Label")
+	float LabelHeightOffset = 0.0f;
+
+	/** 标签渲染区域尺寸（像素）：Border 会填满该区域，按文字大小调整 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DigitalTwinPark|Building|Label")
+	FVector2D LabelDrawSize = FVector2D(240.0f, 40.0f);
 
 	/** 是否高亮 */
 	UFUNCTION(BlueprintPure, Category = "DigitalTwinPark|Building")
@@ -114,6 +135,13 @@ protected:
 
 	/** 把颜色写到外轮廓材质参数 */
 	void ApplyOutlineColor(const FLinearColor& Color);
+
+	/** 创建/刷新数据浮动标签 */
+	void UpdateLabelWidget();
+
+	/** 数据浮动标签实例 */
+	UPROPERTY()
+	TObjectPtr<UDTPBuildingLabelWidget> LabelWidget;
 
 	// 高亮材质
 	UPROPERTY()

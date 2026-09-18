@@ -58,6 +58,22 @@ public:
 	EDTPCameraMode GetCurrentMode() const { return CurrentMode; }
 
 	// ========================================================================
+	// 自动巡游（按预设循环飞行，用于无人值守展播）
+	// ========================================================================
+
+	/** 开始自动巡游（Interval = 每个视角停留秒数） */
+	UFUNCTION(BlueprintCallable, Category = "DigitalTwinPark|Camera")
+	void StartAutoTour(float Interval = 8.0f);
+
+	/** 停止自动巡游 */
+	UFUNCTION(BlueprintCallable, Category = "DigitalTwinPark|Camera")
+	void StopAutoTour();
+
+	/** 是否正在自动巡游 */
+	UFUNCTION(BlueprintPure, Category = "DigitalTwinPark|Camera")
+	bool IsAutoTourActive() const { return bAutoTour; }
+
+	// ========================================================================
 	// 预设列表
 	// ========================================================================
 
@@ -97,4 +113,11 @@ private:
 
 	UPROPERTY()
 	TObjectPtr<UCameraComponent> CachedCamera;
+
+	// 自动巡游状态
+	bool bAutoTour = false;
+	int32 TourPresetIndex = 0;
+	float TourWaitTime = 8.0f;
+	float TourWaitTimer = 0.0f;
+	bool bTourWaiting = false;
 };

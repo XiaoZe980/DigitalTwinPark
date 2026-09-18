@@ -26,6 +26,32 @@ void UDTPCameraManager::BeginPlay()
 		CachedSpringArm = OwnerPawn->FindComponentByClass<USpringArmComponent>();
 		CachedCamera = OwnerPawn->FindComponentByClass<UCameraComponent>();
 	}
+
+	// Presets 未配置时按默认路径加载
+	// （运行时 Pawn 由 GameMode 动态生成，拿不到关卡里编辑用 Pawn 上配的数组）
+	if (Presets.Num() == 0)
+	{
+		static const TCHAR* DefaultPresetPaths[] = {
+			TEXT("/Game/Data/CP_Overview.CP_Overview"),
+			TEXT("/Game/Data/CP_TopDown.CP_TopDown"),
+			TEXT("/Game/Data/CP_Entrance.CP_Entrance"),
+			TEXT("/Game/Data/CP_Building_A.CP_Building_A"),
+		};
+
+		for (const TCHAR* Path : DefaultPresetPaths)
+		{
+			if (UDTPCameraPreset* Preset = LoadObject<UDTPCameraPreset>(nullptr, Path))
+			{
+				Presets.Add(Preset);
+			}
+			else
+			{
+				UE_LOG(LogDTP, Warning, TEXT("[DTP] 相机预设加载失败: %s"), Path);
+			}
+		}
+
+		UE_LOG(LogDTP, Log, TEXT("[DTP] CameraManager 自动加载 %d 个相机预设"), Presets.Num());
+	}
 }
 
 void UDTPCameraManager::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
@@ -36,6 +62,67 @@ void UDTPCameraManager::TickComponent(float DeltaTime, ELevelTick TickType, FAct
 	{
 		UpdateFlyTo(DeltaTime);
 	}
+
+	// 自动巡游：飞到预设 → 停留 → 飞下一个
+	if (bAutoTour && !bIsFlying && Presets.Num() > 0)
+	{
+		if (!bTourWaiting)
+		{
+			// 刚到达，开始计时停留
+			bTourWaiting = true;
+			TourWaitTimer = 0.0f;
+		}
+		else
+		{
+			TourWaitTimer += DeltaTime;
+			if (TourWaitTimer >= TourWaitTime)
+			{
+				bTourWaiting = false;
+				TourWaitTimer = 0.0f;
+
+				if (Presets.IsValidIndex(TourPresetIndex) && Presets[TourPresetIndex])
+				{
+					FlyToPreset(Presets[TourPresetIndex]);
+				}
+				TourPresetIndex = (TourPresetIndex + 1) % Presets.Num();
+			}
+		}
+	}
+}
+
+void UDTPCameraManager::StartAutoTour(float Interval)
+{
+	if (Presets.Num() == 0)
+	{
+		UE_LOG(LogDTP, Warning, TEXT("[DTP] StartAutoTour: Presets 为空，无法巡游"));
+		return;
+	}
+
+	bAutoTour = true;
+	TourWaitTime = FMath::Max(1.0f, Interval);
+	TourWaitTimer = 0.0f;
+	bTourWaiting = false;
+	TourPresetIndex = 0;
+
+	// 立即飞向第一个预设
+	if (Presets[0])
+	{
+		FlyToPreset(Presets[0]);
+	}
+	TourPresetIndex = 1 % Presets.Num();
+
+	UE_LOG(LogDTP, Log, TEXT("[DTP] 自动巡游开始（停留 %.1f 秒/视角，共 %d 个视角）"), TourWaitTime, Presets.Num());
+}
+
+void UDTPCameraManager::StopAutoTour()
+{
+	if (!bAutoTour) return;
+
+	bAutoTour = false;
+	bTourWaiting = false;
+	TourWaitTimer = 0.0f;
+
+	UE_LOG(LogDTP, Log, TEXT("[DTP] 自动巡游结束"));
 }
 
 void UDTPCameraManager::SetFreeRoamMode()

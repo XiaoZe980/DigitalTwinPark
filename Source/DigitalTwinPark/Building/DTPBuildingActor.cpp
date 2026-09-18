@@ -9,6 +9,8 @@
 #include "Components/BoxComponent.h"
 #include "Components/WidgetComponent.h"
 #include "Materials/MaterialInterface.h"
+#include "UI/DTPBuildingLabelWidget.h"
+#include "Blueprint/UserWidget.h"
 
 ADTPBuildingActor::ADTPBuildingActor()
 {
@@ -53,6 +55,20 @@ void ADTPBuildingActor::BeginPlay()
 	{
 		UE_LOG(LogDTP, Warning, TEXT("[DTP] 建筑 %s 未配置BuildingId"), *GetName());
 	}
+
+	// 数据浮动标签：常显在建筑头顶
+	if (bShowDataLabel && LabelWidgetClass && InfoWidget)
+	{
+		LabelWidget = CreateWidget<UDTPBuildingLabelWidget>(GetWorld(), LabelWidgetClass);
+		if (LabelWidget)
+		{
+			InfoWidget->SetWidget(LabelWidget);
+			InfoWidget->SetDrawSize(LabelDrawSize);
+			InfoWidget->SetRelativeLocation(FVector(0.0f, 0.0f, LabelHeightOffset));
+			InfoWidget->SetVisibility(true);
+			UpdateLabelWidget();
+		}
+	}
 }
 
 void ADTPBuildingActor::SetHighlighted(bool bHighlighted)
@@ -71,8 +87,8 @@ void ADTPBuildingActor::SetHighlighted(bool bHighlighted)
 		}
 	}
 
-	// 信息悬浮Widget
-	if (InfoWidget)
+	// 信息悬浮Widget（标签模式常显，否则选中时才显示）
+	if (InfoWidget && !bShowDataLabel)
 	{
 		InfoWidget->SetVisibility(bHighlighted);
 	}
@@ -104,6 +120,17 @@ void ADTPBuildingActor::UpdateData(const FDTPBuildingData& Data)
 	CurrentOccupancy = Data.Occupancy;
 	CurrentPowerUsage = Data.PowerUsage;
 	CurrentWaterUsage = Data.WaterUsage;
+
+	// 同步刷新头顶标签
+	UpdateLabelWidget();
+}
+
+void ADTPBuildingActor::UpdateLabelWidget()
+{
+	if (LabelWidget)
+	{
+		LabelWidget->UpdateLabelData(GetBuildingData());
+	}
 }
 
 void ADTPBuildingActor::UpdateHighlightMaterial()
